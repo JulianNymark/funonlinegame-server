@@ -36,31 +36,37 @@ export const spawnPlayerManager = async ({
     playerStates[uuid] = playerState;
   }
 
-  let timeElapsed = 0;
+  let timeElapsedMs = 0;
+  let tStop = 0;
+  let tStart = 0;
 
   while (!sock.isClosed && playerState.connected) {
-    await delay(SERVER_TICK_MS);
-    timeElapsed += SERVER_TICK_MS;
+    const delta = tStop ? tStop - tStart : 0;
+    tStart = performance.now();
+    await delay(SERVER_TICK_MS); // don't go ham on positional updates...
+    timeElapsedMs += delta;
+    const timeElapsedS = timeElapsedMs / 1000;
 
     playerState = playerStates[uuid];
 
-    playerState.pos.x = Math.cos(Math.PI * timeElapsed) * 100;
-    playerState.pos.y = Math.sin(Math.PI * timeElapsed) * 100;
+    playerState.pos.x = Math.cos(2 * Math.PI * timeElapsedS) * 100;
+    playerState.pos.y = Math.sin(2 * Math.PI * timeElapsedS) * 100;
 
     try {
       sock.send(JSON.stringify(playerState));
     } catch (err) {
       console.error(`failed to send: ${err}`);
-  
+
       if (sock.isClosed) {
         playerState.connected = false;
       }
     }
 
     playerStates[uuid] = playerState;
+    tStop = performance.now();
   }
 };
 
-export const killPlayerManager = ({uuid, sock}: PlayerManagerSettings) => {
+export const killPlayerManager = ({ uuid, sock }: PlayerManagerSettings) => {
   playerStates[uuid].connected = false;
-}
+};
