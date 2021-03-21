@@ -1,6 +1,10 @@
 import { delay } from "https://deno.land/std@0.90.0/async/mod.ts";
 import { WebSocket } from "https://deno.land/std@0.90.0/ws/mod.ts";
 
+// this playerManager is spawned _per_ websocket connection
+// it manages the player data for that player, storing it in a 'shared' dictionary on
+// the players UUID
+
 const SERVER_TICK_MS = 1000 / 60;
 
 interface PlayerState {
@@ -30,7 +34,7 @@ export const spawnPlayerManager = async ({
     playerState = {
       uuid,
       name: "hardcodedusername",
-      pos: { x: 100, y: 100 },
+      pos: { x: Math.random()* 300, y: Math.random() * 300 },
       connected: true,
     };
     playerStates[uuid] = playerState;
@@ -39,6 +43,8 @@ export const spawnPlayerManager = async ({
   let timeElapsedMs = 0;
   let tStop = 0;
   let tStart = 0;
+
+  sock.send(JSON.stringify({ type: 'create_player', data: playerState}));
 
   while (!sock.isClosed && playerState.connected) {
     const delta = tStop ? tStop - tStart : 0;
@@ -49,11 +55,11 @@ export const spawnPlayerManager = async ({
 
     playerState = playerStates[uuid];
 
-    playerState.pos.x = Math.cos(2 * Math.PI * timeElapsedS) * 100;
-    playerState.pos.y = Math.sin(2 * Math.PI * timeElapsedS) * 100;
+    playerState.pos.x = 700 + Math.cos(2 * Math.PI * timeElapsedS) * 40;
+    playerState.pos.y = 100 + Math.sin(2 * Math.PI * timeElapsedS) * 40;
 
     try {
-      sock.send(JSON.stringify(playerState));
+      sock.send(JSON.stringify({ type: 'move_player', data: {uuid: playerState.uuid, pos: playerState.pos}}));
     } catch (err) {
       console.error(`failed to send: ${err}`);
 
