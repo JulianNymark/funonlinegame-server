@@ -8,22 +8,27 @@ import {
 } from "https://deno.land/std@0.90.0/ws/mod.ts";
 import { v4 } from "https://deno.land/std@0.90.0/uuid/mod.ts";
 
-import { killPlayerManager, spawnPlayerManager } from "./playerManager.ts";
+import { killPlayerManager, spawnPlayerManager, messageHandler } from "./playerManager.ts";
 
-async function handleWs(sock: WebSocket) {
+const handleWs = async (sock: WebSocket) => {
   console.log("socket connected!");
 
   const uuid = v4.generate();
 
   spawnPlayerManager({ uuid, sock });
 
+  const textDecoder = new TextDecoder();
+
   try {
     for await (const ev of sock) {
       if (typeof ev === "string") {
         console.log("ws: client text", ev);
+        messageHandler({jsonMessage: ev, uuid, sock});
         await sock.send(ev);
       } else if (ev instanceof Uint8Array) {
-        console.log("ws: client binary data", ev);
+        const message = textDecoder.decode(ev);
+        console.log("ws: client binary data", message);
+        messageHandler({jsonMessage: message, uuid, sock});
       } else if (isWebSocketPingEvent(ev)) {
         const [, body] = ev;
         console.log("ws: client PING", body);
